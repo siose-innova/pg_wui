@@ -5,7 +5,7 @@ COMMENT ON COLUMN config.fuel_cover_ids IS 'List of coverage IDs for fuel.';
 CREATE MATERIALIZED VIEW wui.fuel
 AS SELECT id_polygon, id_coberturas AS category, superf_por AS rel_area, superf_ha AS ha
 FROM t_valores
-WHERE array[id_coberturas] <@ (SELECT fuel_cover_ids FROM wui.config);
+WHERE array[id_coberturas] <@ (SELECT fuel_cover_ids FROM wui.config LIMIT 1);
 COMMENT ON MATERIALIZED VIEW wui.fuel
 IS 'Materialized view for fuel observations.';
 
