@@ -47,3 +47,18 @@ ADD COLUMN intermix_min_fuel_area double precision;
 
 INSERT INTO wui.config
 VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[], 50);
+
+CREATE VIEW wui.intermix_polygons AS
+WITH a AS (
+	SELECT id_polygon, sum(rel_area) AS accum_pop_rel_area, sum(ha) AS accum_pop_ha
+	FROM wui.residential
+	GROUP BY id_polygon
+), b AS (
+	SELECT id_polygon, sum(rel_area) AS accum_fuel_rel_area, sum(ha) AS accum_fuel_ha
+	FROM wui.fuel
+	GROUP BY id_polygon
+), c AS (
+	SELECT * FROM a NATURAL JOIN b
+)
+SELECT c.*, p.geom FROM c NATURAL JOIN t_poli_geo AS p
+WHERE accum_fuel_rel_area >= (SELECT intermix_min_fuel_area FROM wui.config LIMIT 1);
