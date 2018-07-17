@@ -17,9 +17,6 @@ CREATE index ON wui.fuel using btree (rel_area);
 ALTER TABLE wui.config
 ADD COLUMN residential_attr_ids smallint[];
  
-INSERT INTO wui.config
-VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[]);
-		
 CREATE MATERIALIZED VIEW wui.residential AS
 SELECT id_polygon, btrim(atributos)::smallint AS category, superf_por AS rel_area, superf_ha AS ha
 FROM t_valores
@@ -30,3 +27,23 @@ CREATE index ON wui.residential using btree (category);
 CREATE index ON wui.residential using btree (ha);
 CREATE index ON wui.residential using btree (id_polygon);
 CREATE index ON wui.residential using btree (rel_area);
+
+CREATE VIEW wui.intermix AS
+WITH a AS (
+	SELECT id_polygon, category AS pop_type, rel_area AS pop_rel_area, ha AS pop_ha,
+	sum(rel_area) OVER (PARTITION BY id_polygon) AS accum_pop_rel_area,
+	sum(ha) OVER (PARTITION BY id_polygon) AS accum_pop_ha
+	FROM wui.residential
+), b AS (
+	SELECT id_polygon, category AS fuel_type, rel_area AS fuel_rel_area, ha AS fuel_ha,
+	sum(rel_area) OVER (PARTITION BY id_polygon) AS accum_fuel_rel_area,
+	sum(ha) OVER (PARTITION BY id_polygon) AS accum_fuel_ha
+	FROM wui.fuel
+)
+SELECT * FROM a NATURAL JOIN b WHERE accum_fuel_rel_area >= (SELECT intermix_min_fuel_area FROM wui.config LIMIT 1);
+
+ALTER TABLE wui.config
+ADD COLUMN intermix_min_fuel_area double precision;
+
+INSERT INTO wui.config
+VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[], 50);
