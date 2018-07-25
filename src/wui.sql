@@ -73,9 +73,28 @@ SELECT p.id_polygon, (p.geom)::geography AS geom,
 st_setsrid(st_buffer((p.geom)::geography,(SELECT exposure_distance1 FROM wui.config LIMIT 1),2),4258) AS exposure1,
 st_setsrid(st_buffer((p.geom)::geography,(SELECT exposure_distance2 FROM wui.config LIMIT 1),2),4258) AS exposure2,
 st_setsrid(st_buffer((p.geom)::geography,(SELECT exposure_distance3 FROM wui.config LIMIT 1),2),4258) AS exposure3,
-f.accum_fuel_area
+f.accum_fuel_rel_area
 FROM t_poli_geo AS p 
 	NATURAL JOIN
-		(SELECT fuel.id_polygon, sum(fuel.rel_area) AS accum_fuel_area
+		(SELECT fuel.id_polygon, sum(fuel.rel_area) AS accum_fuel_rel_area
 		 FROM wui.fuel
 		 GROUP BY fuel.id_polygon) AS f;
+
+CREATE INDEX ON wui.fuelpolygons USING btree (accum_fuel_rel_area);
+CREATE INDEX ON wui.fuelpolygons USING gist (exposure1);
+CREATE INDEX ON wui.fuelpolygons USING gist (exposure2);
+CREATE INDEX ON wui.fuelpolygons USING gist (exposure3);
+CREATE INDEX ON wui.fuelpolygons USING gist (geom);
+CREATE INDEX ON wui.fuelpolygons USING btree (id_polygon);
+
+CREATE MATERIALIZED VIEW wui.residentialpolygons AS
+SELECT p.id_polygon, (p.geom)::geography AS geom, r.accum_pop_rel_area
+FROM t_poli_geo AS p
+	NATURAL JOIN
+		(SELECT residential.id_polygon, sum(residential.rel_area) AS accum_pop_rel_area
+		 FROM wui.residential
+		 GROUP BY residential.id_polygon) AS r;
+
+CREATE INDEX ON wui.residentialpolygons USING btree (accum_pop_rel_area);
+CREATE INDEX ON wui.residentialpolygons USING gist (geom);
+CREATE INDEX ON wui.residentialpolygons USING btree (id_polygon);
