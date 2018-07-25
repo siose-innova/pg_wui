@@ -65,9 +65,6 @@ ADD COLUMN exposure_distance1 double precision,
 ADD COLUMN exposure_distance2 double precision,
 ADD COLUMN exposure_distance3 double precision;
 
-INSERT INTO wui.config
-VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[],50,10,30,100);
-
 CREATE MATERIALIZED VIEW wui.fuelpolygons AS
 SELECT p.id_polygon, (p.geom)::geography AS geom,
 st_setsrid(st_buffer((p.geom)::geography,(SELECT exposure_distance1 FROM wui.config LIMIT 1),2),4258) AS exposure1,
@@ -85,7 +82,7 @@ CREATE INDEX ON wui.fuelpolygons USING gist (exposure1);
 CREATE INDEX ON wui.fuelpolygons USING gist (exposure2);
 CREATE INDEX ON wui.fuelpolygons USING gist (exposure3);
 CREATE INDEX ON wui.fuelpolygons USING gist (geom);
-CREATE INDEX ON wui.fuelpolygons USING btree (id_polygon);
+CREATE UNIQUE INDEX ON wui.fuelpolygons USING btree (id_polygon);
 
 CREATE MATERIALIZED VIEW wui.residentialpolygons AS
 SELECT p.id_polygon, (p.geom)::geography AS geom, r.accum_pop_rel_area
@@ -97,4 +94,43 @@ FROM t_poli_geo AS p
 
 CREATE INDEX ON wui.residentialpolygons USING btree (accum_pop_rel_area);
 CREATE INDEX ON wui.residentialpolygons USING gist (geom);
-CREATE INDEX ON wui.residentialpolygons USING btree (id_polygon);
+CREATE UNIQUE INDEX ON wui.residentialpolygons USING btree (id_polygon);
+
+ALTER TABLE wui.config
+ADD COLUMN interface_min_fuel_area double precision;
+
+INSERT INTO wui.config
+VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[],50,10,30,100,75);
+
+CREATE MATERIALIZED VIEW wui.interface1 AS
+SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
+FROM wui.fuelpolygons AS fuel
+	JOIN wui.residentialpolygons AS pop
+		ON fuel.exposure1 && pop.geom
+WHERE fuel.accum_fuel_rel_area >= (SELECT interface_min_fuel_area FROM wui.config LIMIT 1);
+
+CREATE INDEX ON wui.interface1 USING btree (fuel_polygon);
+CREATE UNIQUE INDEX ON wui.interface1 USING btree (fuel_polygon, pop_polygon);
+CREATE INDEX ON wui.interface1 USING btree (pop_polygon);
+
+CREATE MATERIALIZED VIEW wui.interface2 AS
+SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
+FROM wui.fuelpolygons AS fuel
+	JOIN wui.residentialpolygons AS pop
+		ON fuel.exposure2 && pop.geom
+WHERE fuel.accum_fuel_rel_area >= (SELECT interface_min_fuel_area FROM wui.config LIMIT 1);
+
+CREATE INDEX ON wui.interface2 USING btree (fuel_polygon);
+CREATE UNIQUE INDEX ON wui.interface2 USING btree (fuel_polygon, pop_polygon);
+CREATE INDEX ON wui.interface2 USING btree (pop_polygon);
+
+CREATE MATERIALIZED VIEW wui.interface3 AS
+SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
+FROM wui.fuelpolygons AS fuel
+	JOIN wui.residentialpolygons AS pop
+		ON fuel.exposure3 && pop.geom
+WHERE fuel.accum_fuel_rel_area >= (SELECT interface_min_fuel_area FROM wui.config LIMIT 1);
+
+CREATE INDEX ON wui.interface3 USING btree (fuel_polygon);
+CREATE UNIQUE INDEX ON wui.interface3 USING btree (fuel_polygon, pop_polygon);
+CREATE INDEX ON wui.interface3 USING btree (pop_polygon);
