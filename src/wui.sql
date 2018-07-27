@@ -134,3 +134,45 @@ WHERE fuel.accum_fuel_rel_area >= (SELECT interface_min_fuel_area FROM wui.confi
 CREATE INDEX ON wui.interface3 USING btree (fuel_polygon);
 CREATE UNIQUE INDEX ON wui.interface3 USING btree (fuel_polygon, pop_polygon);
 CREATE INDEX ON wui.interface3 USING btree (pop_polygon);
+
+CREATE MATERIALIZED VIEW wui.interface AS
+WITH internal_e(id_polygon, selfexposed) AS (
+		SELECT pop_polygon, bool_or(pop_polygon = fuel_polygon)
+		FROM wui.interface1
+		GROUP BY pop_polygon
+	UNION
+		SELECT pop_polygon, bool_or(pop_polygon = fuel_polygon)
+		FROM wui.interface2
+		GROUP BY pop_polygon
+	UNION
+		SELECT pop_polygon, bool_or(pop_polygon = fuel_polygon)
+		FROM wui.interface3
+		GROUP BY pop_polygon
+	), e1(id_polygon, exposure1_cardinality) AS (
+		SELECT pop_polygon, count(*) AS count
+		FROM wui.interface1
+		GROUP BY pop_polygon
+	), e2(id_polygon, exposure2_cardinality) AS (
+		SELECT pop_polygon, count(*) AS count
+		FROM wui.interface2
+		GROUP BY pop_polygon
+	), e3(id_polygon, exposure3_cardinality) AS (
+		SELECT pop_polygon, count(*) AS count
+		FROM wui.interface3
+		GROUP BY pop_polygon
+	), e(id_polygon, exposure1_cardinality, exposure2_cardinality, exposure3_cardinality) AS (
+		SELECT id_polygon, COALESCE(e1.exposure1_cardinality, (0)), COALESCE(e2.exposure2_cardinality, (0)), COALESCE(e3.exposure3_cardinality, (0))
+		FROM e1 NATURAL FULL JOIN e2 NATURAL FULL JOIN e3
+	)
+SELECT
+	CASE
+		WHEN (e.exposure1_cardinality > 0) THEN 1
+		WHEN ((e.exposure1_cardinality = 0) AND (e.exposure2_cardinality > 0)) THEN 2
+		ELSE 3
+	END AS prevalent_exposure,
+	e.id_polygon, e.exposure1_cardinality, e.exposure2_cardinality, e.exposure3_cardinality, internal_e.selfexposed
+FROM e NATURAL JOIN internal_e;
+
+CREATE VIEW wui.interface_polygons AS
+	SELECT interface.*,t_poli_geo.geom
+	FROM wui.interface NATURAL JOIN t_poli_geo;
