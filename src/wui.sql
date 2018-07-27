@@ -106,7 +106,7 @@ CREATE MATERIALIZED VIEW wui.interface1 AS
 SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
 FROM wui.fuelpolygons AS fuel
 	JOIN wui.residentialpolygons AS pop
-		ON fuel.exposure1 && pop.geom
+		ON st_intersects(fuel.exposure1, pop.geom)
 WHERE fuel.accum_fuel_rel_area >= (SELECT interface_min_fuel_area FROM wui.config LIMIT 1);
 
 CREATE INDEX ON wui.interface1 USING btree (fuel_polygon);
@@ -117,7 +117,7 @@ CREATE MATERIALIZED VIEW wui.interface2 AS
 SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
 FROM wui.fuelpolygons AS fuel
 	JOIN wui.residentialpolygons AS pop
-		ON fuel.exposure2 && pop.geom
+		ON st_intersects(fuel.exposure2, pop.geom)
 WHERE fuel.accum_fuel_rel_area >= (SELECT interface_min_fuel_area FROM wui.config LIMIT 1);
 
 CREATE INDEX ON wui.interface2 USING btree (fuel_polygon);
@@ -128,7 +128,7 @@ CREATE MATERIALIZED VIEW wui.interface3 AS
 SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
 FROM wui.fuelpolygons AS fuel
 	JOIN wui.residentialpolygons AS pop
-		ON fuel.exposure3 && pop.geom
+		ON st_intersects(fuel.exposure3, pop.geom)
 WHERE fuel.accum_fuel_rel_area >= (SELECT interface_min_fuel_area FROM wui.config LIMIT 1);
 
 CREATE INDEX ON wui.interface3 USING btree (fuel_polygon);
@@ -172,6 +172,8 @@ SELECT
 	END AS prevalent_exposure,
 	e.id_polygon, e.exposure1_cardinality, e.exposure2_cardinality, e.exposure3_cardinality, internal_e.selfexposed
 FROM e NATURAL JOIN internal_e;
+
+CREATE UNIQUE INDEX ON wui.interface USING btree (id_polygon);
 
 CREATE VIEW wui.interface_polygons AS
 	SELECT interface.*,t_poli_geo.geom
