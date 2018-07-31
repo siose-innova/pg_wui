@@ -1,0 +1,25 @@
+version: '3'
+services:
+  pg_wui:
+    build:
+      context: .
+      args:
+        - BASE=$BASE
+        - SCHEMA=$SCHEMA
+    image: siose-innova/preinstalled-pg_wui:$VERSION-$SUBTAG
+    container_name: pg_wui_host
+    networks:
+      - ext_packaging
+
+  ext-creator:
+    image: wildbeeq/ext-creator:10
+    environment:
+      - HOST=pg_wui_host
+      - DB=$DB
+      - USER=postgres
+      - EXTNAME=pg_wui
+    networks:
+      - ext_packaging
+
+networks:
+  ext_packaging:
