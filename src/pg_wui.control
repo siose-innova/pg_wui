@@ -1,0 +1,6 @@
+# pg_wui extension
+comment = 'Wildland urban interface data analysis for SIOSE databases'
+default_version = 0.1
+requires = postgis
+relocatable = false
+schema = wui
