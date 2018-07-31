@@ -1,6 +1,16 @@
-CREATE TABLE wui.config (fuel_cover_ids smallint[]);
+CREATE TABLE wui.config (fuel_cover_ids smallint[],
+						 residential_attr_ids smallint[],
+						 intermix_min_fuel_area double precision,
+						 exposure_distance1 double precision,
+						 exposure_distance2 double precision,
+						 exposure_distance3 double precision,
+						 interface_min_fuel_area double precision);
+
 COMMENT ON TABLE wui.config IS 'Table for configuration variables.';
 COMMENT ON COLUMN config.fuel_cover_ids IS 'List of coverage IDs for fuel.';
+
+INSERT INTO wui.config
+VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[],50,10,30,100,75);
 
 CREATE MATERIALIZED VIEW wui.fuel
 AS SELECT id_polygon, id_coberturas AS category, superf_por AS rel_area, superf_ha AS ha
@@ -13,9 +23,6 @@ CREATE index ON wui.fuel using btree (category);
 CREATE index ON wui.fuel using btree (ha);
 CREATE index ON wui.fuel using btree (id_polygon);
 CREATE index ON wui.fuel using btree (rel_area);
-							   
-ALTER TABLE wui.config
-ADD COLUMN residential_attr_ids smallint[];
  
 CREATE MATERIALIZED VIEW wui.residential AS
 SELECT id_polygon, btrim(atributos)::smallint AS category, superf_por AS rel_area, superf_ha AS ha
@@ -42,9 +49,6 @@ WITH a AS (
 )
 SELECT * FROM a NATURAL JOIN b WHERE accum_fuel_rel_area >= (SELECT intermix_min_fuel_area FROM wui.config LIMIT 1);
 
-ALTER TABLE wui.config
-ADD COLUMN intermix_min_fuel_area double precision;
-
 CREATE VIEW wui.intermix_polygons AS
 WITH a AS (
 	SELECT id_polygon, sum(rel_area) AS accum_pop_rel_area, sum(ha) AS accum_pop_ha
@@ -59,11 +63,6 @@ WITH a AS (
 )
 SELECT c.*, p.geom FROM c NATURAL JOIN t_poli_geo AS p
 WHERE accum_fuel_rel_area >= (SELECT intermix_min_fuel_area FROM wui.config LIMIT 1);
-
-ALTER TABLE wui.config
-ADD COLUMN exposure_distance1 double precision,
-ADD COLUMN exposure_distance2 double precision,
-ADD COLUMN exposure_distance3 double precision;
 
 CREATE MATERIALIZED VIEW wui.fuelpolygons AS
 SELECT p.id_polygon, (p.geom)::geography AS geom,
@@ -95,12 +94,6 @@ FROM t_poli_geo AS p
 CREATE INDEX ON wui.residentialpolygons USING btree (accum_pop_rel_area);
 CREATE INDEX ON wui.residentialpolygons USING gist (geom);
 CREATE UNIQUE INDEX ON wui.residentialpolygons USING btree (id_polygon);
-
-ALTER TABLE wui.config
-ADD COLUMN interface_min_fuel_area double precision;
-
-INSERT INTO wui.config
-VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[],50,10,30,100,75);
 
 CREATE MATERIALIZED VIEW wui.interface1 AS
 SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
