@@ -2,6 +2,21 @@
 # save a Docker image that provides a SIOSE
 # database instance with pg_wui extension.
 
+# REQUIREMENTS:
+# 1. An ext-creator image must be properly
+#    compiled and registered with a name
+#    that matches the image name for ext-creator
+#    service in docker-compose.yml.template.
+#    To compile an ext-creator image use
+#    lib/ext-creator/[VERSION]/Dockerfile
+#    in this repository.
+# 2. A SIOSE Docker image must be properly
+#    compiled and its registered name assigned
+#    to Makefile variable BASE. An instance of
+#    this image must provide a SIOSE database
+#    which is compliant with the MF2 data model.
+
+
 COMPOSE = docker-compose.yml
 TEMPLATE = $(COMPOSE).template
 VERSION = 0.1
