@@ -1,3 +1,7 @@
+CREATE SCHEMA wui;
+
+SET search_path to public, s2005, s2011, s2014;
+
 CREATE TABLE wui.config (fuel_cover_ids smallint[],
 						 residential_attr_ids smallint[],
 						 intermix_min_fuel_area double precision,
@@ -7,7 +11,7 @@ CREATE TABLE wui.config (fuel_cover_ids smallint[],
 						 interface_min_fuel_area double precision);
 
 COMMENT ON TABLE wui.config IS 'Table for configuration variables.';
-COMMENT ON COLUMN config.fuel_cover_ids IS 'List of coverage IDs for fuel.';
+COMMENT ON COLUMN wui.config.fuel_cover_ids IS 'List of coverage IDs for fuel.';
 
 INSERT INTO wui.config
 VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[],50,10,30,100,75);
@@ -88,7 +92,7 @@ SELECT p.id_polygon, (p.geom)::geography AS geom, r.accum_pop_rel_area
 FROM t_poli_geo AS p
 	NATURAL JOIN
 		(SELECT residential.id_polygon, sum(residential.rel_area) AS accum_pop_rel_area
-		 FROM wui.residential
+                 FROM wui.residential
 		 GROUP BY residential.id_polygon) AS r;
 
 CREATE INDEX ON wui.residentialpolygons USING btree (accum_pop_rel_area);
