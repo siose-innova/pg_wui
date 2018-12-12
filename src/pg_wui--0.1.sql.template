@@ -13,7 +13,7 @@ CREATE TABLE @extschema@.config (
  interface_min_fuel_area double precision);
 
 COMMENT ON TABLE @extschema@.config IS 'Table for configuration variables.';
-COMMENT ON COLUMN config.fuel_cover_ids IS 'List of coverage IDs for fuel.';
+COMMENT ON COLUMN @extschema@.config.fuel_cover_ids IS 'List of coverage IDs for fuel.';
 
 INSERT INTO @extschema@.config
 VALUES ('{312,313,316,320}'::smallint[],'{21,22,23,24}'::smallint[],50,10,30,100,75);
