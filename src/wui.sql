@@ -73,10 +73,11 @@ SELECT p.id_polygon, (p.geom)::geography AS geom,
 st_setsrid(st_buffer((p.geom)::geography,(SELECT exposure_distance1 FROM wui.config LIMIT 1),2),4258) AS exposure1,
 st_setsrid(st_buffer((p.geom)::geography,(SELECT exposure_distance2 FROM wui.config LIMIT 1),2),4258) AS exposure2,
 st_setsrid(st_buffer((p.geom)::geography,(SELECT exposure_distance3 FROM wui.config LIMIT 1),2),4258) AS exposure3,
-f.accum_fuel_rel_area
+f.accum_fuel_rel_area,
+f.accum_fuel_ha
 FROM t_poli_geo AS p 
 	NATURAL JOIN
-		(SELECT fuel.id_polygon, sum(fuel.rel_area) AS accum_fuel_rel_area
+		(SELECT fuel.id_polygon, sum(fuel.rel_area) AS accum_fuel_rel_area, sum(fuel.ha) AS accum_fuel_ha
 		 FROM wui.fuel
 		 GROUP BY fuel.id_polygon) AS f;
 
@@ -88,10 +89,10 @@ CREATE INDEX ON wui.fuelpolygons USING gist (geom);
 CREATE UNIQUE INDEX ON wui.fuelpolygons USING btree (id_polygon);
 
 CREATE MATERIALIZED VIEW wui.residentialpolygons AS
-SELECT p.id_polygon, (p.geom)::geography AS geom, r.accum_pop_rel_area
+SELECT p.id_polygon, (p.geom)::geography AS geom, r.accum_pop_rel_area, r.accum_pop_ha
 FROM t_poli_geo AS p
 	NATURAL JOIN
-		(SELECT residential.id_polygon, sum(residential.rel_area) AS accum_pop_rel_area
+		(SELECT residential.id_polygon, sum(residential.rel_area) AS accum_pop_rel_area, sum(residential.ha) AS accum_pop_ha
                  FROM wui.residential
 		 GROUP BY residential.id_polygon) AS r;
 
@@ -100,7 +101,8 @@ CREATE INDEX ON wui.residentialpolygons USING gist (geom);
 CREATE UNIQUE INDEX ON wui.residentialpolygons USING btree (id_polygon);
 
 CREATE MATERIALIZED VIEW wui.interface1 AS
-SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
+SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon,
+       fuel.accum_fuel_ha, pop.accum_pop_ha
 FROM wui.fuelpolygons AS fuel
 	JOIN wui.residentialpolygons AS pop
 		ON st_intersects(fuel.exposure1, pop.geom)
@@ -111,7 +113,8 @@ CREATE UNIQUE INDEX ON wui.interface1 USING btree (fuel_polygon, pop_polygon);
 CREATE INDEX ON wui.interface1 USING btree (pop_polygon);
 
 CREATE MATERIALIZED VIEW wui.interface2 AS
-SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
+SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon,
+       fuel.accum_fuel_ha, pop.accum_pop_ha
 FROM wui.fuelpolygons AS fuel
 	JOIN wui.residentialpolygons AS pop
 		ON st_intersects(fuel.exposure2, pop.geom)
@@ -122,7 +125,8 @@ CREATE UNIQUE INDEX ON wui.interface2 USING btree (fuel_polygon, pop_polygon);
 CREATE INDEX ON wui.interface2 USING btree (pop_polygon);
 
 CREATE MATERIALIZED VIEW wui.interface3 AS
-SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon
+SELECT fuel.id_polygon AS fuel_polygon, pop.id_polygon AS pop_polygon,
+       fuel.accum_fuel_ha, pop.accum_pop_ha
 FROM wui.fuelpolygons AS fuel
 	JOIN wui.residentialpolygons AS pop
 		ON st_intersects(fuel.exposure3, pop.geom)
@@ -145,20 +149,20 @@ WITH internal_e(id_polygon, selfexposed) AS (
 		SELECT pop_polygon, bool_or(pop_polygon = fuel_polygon)
 		FROM wui.interface3
 		GROUP BY pop_polygon
-	), e1(id_polygon, exposure1_cardinality) AS (
-		SELECT pop_polygon, count(*) AS count
+	), e1(id_polygon, exposed_ha, exposure1_cardinality, exposure1_fuel_ha) AS (
+		SELECT pop_polygon, accum_pop_ha, count(*), sum(accum_fuel_ha)
 		FROM wui.interface1
-		GROUP BY pop_polygon
-	), e2(id_polygon, exposure2_cardinality) AS (
-		SELECT pop_polygon, count(*) AS count
+		GROUP BY pop_polygon, accum_pop_ha
+	), e2(id_polygon, exposed_ha, exposure2_cardinality, exposure2_fuel_ha) AS (
+		SELECT pop_polygon, accum_pop_ha, count(*), sum(accum_fuel_ha)
 		FROM wui.interface2
-		GROUP BY pop_polygon
-	), e3(id_polygon, exposure3_cardinality) AS (
-		SELECT pop_polygon, count(*) AS count
+		GROUP BY pop_polygon, accum_pop_ha
+	), e3(id_polygon, exposed_ha, exposure3_cardinality, exposure3_fuel_ha) AS (
+		SELECT pop_polygon, accum_pop_ha, count(*), sum(accum_fuel_ha)
 		FROM wui.interface3
-		GROUP BY pop_polygon
-	), e(id_polygon, exposure1_cardinality, exposure2_cardinality, exposure3_cardinality) AS (
-		SELECT id_polygon, COALESCE(e1.exposure1_cardinality, (0)), COALESCE(e2.exposure2_cardinality, (0)), COALESCE(e3.exposure3_cardinality, (0))
+		GROUP BY pop_polygon, accum_pop_ha
+	), e(id_polygon, exposed_ha, exposure1_cardinality, exposure2_cardinality, exposure3_cardinality, exposure1_fuel_ha, exposure2_fuel_ha, exposure3_fuel_ha) AS (
+		SELECT id_polygon, exposed_ha, COALESCE(e1.exposure1_cardinality, (0)), COALESCE(e2.exposure2_cardinality, (0)), COALESCE(e3.exposure3_cardinality, (0)), COALESCE(e1.exposure1_fuel_ha, (0)), COALESCE(e2.exposure2_fuel_ha, (0)), COALESCE(e3.exposure3_fuel_ha, (0))
 		FROM e1 NATURAL FULL JOIN e2 NATURAL FULL JOIN e3
 	)
 SELECT
@@ -167,10 +171,17 @@ SELECT
 		WHEN ((e.exposure1_cardinality = 0) AND (e.exposure2_cardinality > 0)) THEN 2
 		ELSE 3
 	END AS prevalent_exposure,
-	e.id_polygon, e.exposure1_cardinality, e.exposure2_cardinality, e.exposure3_cardinality, internal_e.selfexposed
+	e.id_polygon, e.exposed_ha, e.exposure1_cardinality, e.exposure2_cardinality, e.exposure3_cardinality, e.exposure1_fuel_ha, e.exposure2_fuel_ha, e.exposure3_fuel_ha, internal_e.selfexposed
 FROM e NATURAL JOIN internal_e;
 
 CREATE UNIQUE INDEX ON wui.interface USING btree (id_polygon);
+CREATE INDEX ON wui.interface USING btree (exposed_ha);
+CREATE INDEX ON wui.interface USING btree (exposure1_cardinality);
+CREATE INDEX ON wui.interface USING btree (exposure2_cardinality);
+CREATE INDEX ON wui.interface USING btree (exposure3_cardinality);
+CREATE INDEX ON wui.interface USING btree (exposure1_fuel_ha);
+CREATE INDEX ON wui.interface USING btree (exposure2_fuel_ha);
+CREATE INDEX ON wui.interface USING btree (exposure3_fuel_ha);
 
 CREATE VIEW wui.interface_polygons AS
 	SELECT interface.*,t_poli_geo.geom
