@@ -171,10 +171,12 @@ SELECT
 		WHEN ((e.exposure1_cardinality = 0) AND (e.exposure2_cardinality > 0)) THEN 2
 		ELSE 3
 	END AS prevalent_exposure,
-	e.id_polygon, e.exposed_ha, e.exposure1_cardinality, e.exposure2_cardinality, e.exposure3_cardinality, e.exposure1_fuel_ha, e.exposure2_fuel_ha, e.exposure3_fuel_ha, internal_e.selfexposed
-FROM e NATURAL JOIN internal_e;
+	(4*pi()*st_area(g.geom::geography))/st_perimeter(g.geom::geography)^2 AS isoperimetric_quotient,
+	e.*, internal_e.selfexposed
+FROM e NATURAL JOIN internal_e NATURAL JOIN t_poli_geo g;
 
 CREATE UNIQUE INDEX ON wui.interface USING btree (id_polygon);
+CREATE INDEX ON wui.interface USING btree (isoperimetric_quotient);
 CREATE INDEX ON wui.interface USING btree (exposed_ha);
 CREATE INDEX ON wui.interface USING btree (exposure1_cardinality);
 CREATE INDEX ON wui.interface USING btree (exposure2_cardinality);
@@ -184,5 +186,5 @@ CREATE INDEX ON wui.interface USING btree (exposure2_fuel_ha);
 CREATE INDEX ON wui.interface USING btree (exposure3_fuel_ha);
 
 CREATE VIEW wui.interface_polygons AS
-	SELECT interface.*,t_poli_geo.geom
+	SELECT interface.*, t_poli_geo.geom
 	FROM wui.interface NATURAL JOIN t_poli_geo;
