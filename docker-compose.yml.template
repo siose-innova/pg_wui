@@ -12,7 +12,7 @@ services:
       - ext_packaging
 
   ext-creator:
-    image: wildbeeq/ext-creator:10
+    image: siose-innova/ext-creator:10
     environment:
       - HOST=pg_wui_host
       - DB=$DB

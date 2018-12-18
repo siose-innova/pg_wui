@@ -1,4 +1,4 @@
-FROM wildbeeq/postgresql:10.4
+FROM siose-innova/postgresql:10.4
 
 ENV POSTGIS_VERSION 2.4.4
 ENV POSTGIS_SHA256 0dff4902556ad45430e2b85dbe7e9baa758c6eb0bfd5ff6948f478beddd56b67
