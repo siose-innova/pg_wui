@@ -19,7 +19,7 @@
 
 COMPOSE = docker-compose.yml
 TEMPLATE = $(COMPOSE).template
-VERSION = 0.1
+VERSION = 0.2
 # Assign values as needed to vars below.
 # Then run:
 # $ make clean

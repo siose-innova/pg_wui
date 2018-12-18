@@ -1,5 +1,5 @@
 EXTENSION = pg_wui
-DATA = pg_wui--0.1.sql
+DATA = pg_wui--0.2.sql
 TEMPLATE = $(DATA).template
 
 $(DATA) : $(TEMPLATE)
