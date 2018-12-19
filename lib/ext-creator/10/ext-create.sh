@@ -9,9 +9,10 @@ done
 >&2 echo "Connection successful."
 
 # Load $EXTNAME into $DB
-echo "Loading $EXTNAME into $DB"
+echo "Please wait while loading $EXTNAME into $DB ..."
   psql -v ON_ERROR_STOP=1 --host "$HOST" --username "$USER" --dbname "$DB"<<-EOSQL
     \timing
     CREATE EXTENSION IF NOT EXISTS "$EXTNAME";
     VACUUM ANALYZE;
 EOSQL
+echo "Extension $EXTNAME loaded succesfully."
