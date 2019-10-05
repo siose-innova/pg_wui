@@ -17,7 +17,7 @@ RUN set -ex \
         libpq \
         libspatialite \
         libxml2 \
-        proj4 \
+        proj \
         python3 \
         sqlite \
     \
@@ -42,7 +42,7 @@ RUN set -ex \
         sqlite-dev \
         libxml2-dev \
         curl-dev \
-        proj4-dev \
+        proj-dev \
         geos-dev \
         python3-dev \
         postgresql-dev \
@@ -57,7 +57,7 @@ RUN set -ex \
         --with-libtiff=internal \
         --with-libz=internal \
         --with-pg \
-        --with-static-proj4 \
+        --with-static-proj \
         --with-python \
         --with-spatialite \
         --with-sqlite3 \
